@@ -233,25 +233,54 @@ static struct command_result *payment_getroute_error(struct command *cmd,
 	return command_still_pending(cmd);
 }
 
-/* Iterate through the channel_hints and exclude any channel that we are
- * confident will not be able to handle this payment. */
-static void payment_getroute_add_excludes(struct payment *p,
-					  struct json_stream *js)
+static const struct short_channel_id_dir *
+payment_get_excluded_channels(const tal_t *ctx, struct payment *p)
 {
 	struct payment *root = payment_root(p);
 	struct channel_hint *hint;
-
-	json_array_start(js, "exclude");
+	struct short_channel_id_dir *res =
+	    tal_arr(ctx, struct short_channel_id_dir, 0);
 	for (size_t i = 0; i < tal_count(root->channel_hints); i++) {
 		hint = &root->channel_hints[i];
 
 		if (!hint->enabled)
-			json_add_short_channel_id_dir(js, NULL, &hint->scid);
+			tal_arr_expand(&res, hint->scid);
 
 		else if (amount_msat_greater_eq(p->amount,
 						hint->estimated_capacity))
-			json_add_short_channel_id_dir(js, NULL, &hint->scid);
+			tal_arr_expand(&res, hint->scid);
 	}
+	return res;
+}
+
+static const struct node_id *payment_get_excluded_nodes(const tal_t *ctx,
+						  struct payment *p)
+{
+	struct payment *root = payment_root(p);
+	return root->excluded_nodes;
+}
+
+/* Iterate through the channel_hints and exclude any channel that we are
+ * confidet will not be able to handle this payment. */
+static void payment_getroute_add_excludes(struct payment *p,
+					  struct json_stream *js)
+{
+	const struct node_id *nodes;
+	const struct short_channel_id_dir *chans;
+
+	json_array_start(js, "exclude");
+
+	/* Collect and exclude all channels that are disabled or we know have
+	 * insufficient capacity. */
+	chans = payment_get_excluded_channels(tmpctx, p);
+	for (size_t i=0; i<tal_count(chans); i++)
+		json_add_short_channel_id_dir(js, NULL, &chans[i]);
+
+	/* Now also exclude nodes that we think have failed. */
+	nodes = payment_get_excluded_nodes(tmpctx, p);
+	for (size_t i=0; i<tal_count(nodes); i++)
+		json_add_node_id(js, NULL, &nodes[i]);
+
 	json_array_end(js);
 }
 
