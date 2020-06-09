@@ -747,7 +747,7 @@ payment_waitsendpay_finished(struct command *cmd, const char *buffer,
 		    json_tok_full_len(toks), json_tok_full(buffer, toks));
 
 	if (p->result->state == PAYMENT_COMPLETE) {
-		p->step = PAYMENT_STEP_SUCCESS;
+		payment_set_step(p, PAYMENT_STEP_SUCCESS);
 		p->end_time = time_now();
 		payment_continue(p);
 		return command_still_pending(cmd);
@@ -1246,6 +1246,12 @@ static void payment_finished(struct payment *p)
 	}
 }
 
+void payment_set_step(struct payment *p, enum payment_step newstep)
+{
+	p->current_modifier = -1;
+	p->step = newstep;
+}
+
 void payment_continue(struct payment *p)
 {
 	struct payment_modifier *mod;
@@ -1296,7 +1302,7 @@ void payment_continue(struct payment *p)
 void payment_fail(struct payment *p, const char *reason)
 {
 	p->end_time = time_now();
-	p->step = PAYMENT_STEP_FAILED;
+	payment_set_step(p, PAYMENT_STEP_FAILED);
 	p->failreason = tal_steal(p, reason);
 	payment_continue(p);
 }
@@ -1414,7 +1420,7 @@ static inline void retry_step_cb(struct retry_mod_data *rd,
 	if (rdata->retries > 0) {
 		subpayment = payment_new(p, NULL, p, p->modifiers);
 		payment_start(subpayment);
-		p->step = PAYMENT_STEP_RETRY;
+		payment_set_step(p, PAYMENT_STEP_RETRY);
 		subpayment->why =
 		    tal_fmt(subpayment, "Still have %d attempts left",
 			    rdata->retries - 1);
