@@ -2050,3 +2050,32 @@ static void waitblockheight_cb(void *d, struct payment *p)
 }
 
 REGISTER_PAYMENT_MODIFIER(waitblockheight, void *, NULL, waitblockheight_cb);
+
+/*****************************************************************************
+ * Early MPP splitter modifier.
+ *
+ * This splitter modifier is applied to the root payment, and splits the
+ * payment into parts that are more likely to succeed right away. The
+ * parameters are derived from probing the network for channel capacities, and
+ * may be adjusted in future.
+ */
+
+
+/*By probing the capacity from a well-connected vantage point in the network
+ * we found that the 80th percentile of capacities is >= 9765 sats.
+ *
+ * Rounding to 10e6 msats per part there is a ~80% chance that the payment
+ * will go through without requiring further splitting. The fuzzing is
+ * symmetric and uniformy distributed around this value, so this should not
+ * change the success rate much. For the remaining 20% of payments we might
+ * require a split to make the parts succeed, so we try only a limited number
+ * of times before we split adaptively.
+ *
+ * Notice that these numbers are based on a worst case assumption that
+ * payments from any node to any other node are equally likely, which isn't
+ * really the case, so this is likely a lower bound on the success rate.
+ *
+ * As the network evolves these numbers are also likely to change.
+ */
+#define MPP_TARGET_SIZE AMOUNT_MSAT(10 * 10**6)
+#define MPP_TARGET_FUZZ (1 * 10**6)
