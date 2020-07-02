@@ -2977,21 +2977,6 @@ def test_invalid_onion_channel_update(node_factory):
     assert l1.rpc.getinfo()['id'] == l1id
 
 
-@unittest.skipIf(not DEVELOPER, "paymod is only available to developers for now.")
-def test_pay_modifiers(node_factory):
-    l1, l2 = node_factory.line_graph(2, opts=[{}, {}])
-
-    # Make sure that the dummy param is in the help (and therefore assigned to
-    # the modifier data).
-    hlp = l1.rpc.help("paymod")['help'][0]
-    assert(hlp['command'] == 'paymod bolt11 [msatoshi] [label] [riskfactor] [maxfeepercent] [retry_for] [maxdelay] [exemptfee] [use_shadow]')
-
-    inv = l2.rpc.invoice(123, 'lbl', 'desc')['bolt11']
-    r = l1.rpc.paymod(inv)
-    assert(r['status'] == 'complete')
-    assert(sha256(unhexlify(r['payment_preimage'])).hexdigest() == r['payment_hash'])
-
-
 @unittest.skipIf(not DEVELOPER, "Requires use_shadow")
 def test_pay_exemptfee(node_factory, compat):
     """Tiny payment, huge fee
