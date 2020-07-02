@@ -1269,6 +1269,12 @@ static struct pay_status *add_pay_status(struct pay_command *pc,
 	return ps;
 }
 
+/* Declaration so we can switch from legacy to new and the other way
+ * around. */
+static struct command_result *json_paymod(struct command *cmd,
+				       const char *buf,
+				       const jsmntok_t *params);
+
 #ifndef COMPAT_V090
 UNUSED
 #endif
@@ -1287,6 +1293,7 @@ static struct command_result *json_pay(struct command *cmd,
 	unsigned int *maxdelay;
 	struct amount_msat *exemptfee;
 	struct out_req *req;
+	bool *legacy;
 #if DEVELOPER
 	bool *use_shadow;
 #endif
@@ -1303,11 +1310,16 @@ static struct command_result *json_pay(struct command *cmd,
 			     maxdelay_default),
 		   p_opt_def("exemptfee", param_msat, &exemptfee,
 			     AMOUNT_MSAT(5000)),
+		   p_opt_def("legacy", param_bool, &legacy,
+			     true),
 #if DEVELOPER
 		   p_opt_def("use_shadow", param_bool, &use_shadow, true),
 #endif
 		   NULL))
 		return command_param_failed();
+
+	if (!*legacy)
+		return json_paymod(cmd, buf, params);
 
 	b11 = bolt11_decode(cmd, b11str, plugin_feature_set(cmd->plugin),
 			    NULL, &fail);
@@ -1864,6 +1876,9 @@ static struct command_result *json_paymod(struct command *cmd,
 	const char *label;
 	unsigned int *retryfor;
 	u64 *riskfactor_millionths;
+#ifdef COMPAT_V090
+	bool *legacy;
+#endif
 #if DEVELOPER
 	bool *use_shadow;
 #endif
@@ -1884,11 +1899,19 @@ static struct command_result *json_paymod(struct command *cmd,
 		   p_opt_def("maxdelay", param_number, &maxdelay,
 			     maxdelay_default),
 		   p_opt_def("exemptfee", param_msat, &exemptfee, AMOUNT_MSAT(5000)),
+#ifdef COMPAT_V090
+		   p_opt_def("legacy", param_bool, &legacy, false),
+#endif
 #if DEVELOPER
 		   p_opt_def("use_shadow", param_bool, &use_shadow, true),
 #endif
 		      NULL))
 		return command_param_failed();
+
+#ifdef COMPAT_V090
+	if (*legacy)
+		return json_pay(cmd, buf, params);
+#endif
 
 	b11 = bolt11_decode(cmd, b11str, plugin_feature_set(cmd->plugin),
 			    NULL, &fail);
@@ -1962,17 +1985,25 @@ static struct command_result *json_paymod(struct command *cmd,
 	return command_still_pending(cmd);
 }
 
-static const struct plugin_command commands[] = { {
-		"pay",
+static const struct plugin_command commands[] = {
+#ifdef COMPAT_v090
+	{
+		"legacypay",
 		"payment",
 		"Send payment specified by {bolt11} with {amount}",
 		"Try to send a payment, retrying {retry_for} seconds before giving up",
 #ifdef COMPAT_V090
 		json_pay
+<<<<<<< HEAD
 #else
 		json_paymod
 #endif
 	}, {
+=======
+	},
+#endif
+	{
+>>>>>>> fdd024dd1... paymod: Activate paymod and allow switching between legacy and new
 		"paystatus",
 		"payment",
 		"Detail status of attempts to pay {bolt11}, or all",
@@ -1985,15 +2016,13 @@ static const struct plugin_command commands[] = { {
 		"Covers old payments (failed and succeeded) and current ones.",
 		json_listpays
 	},
-#if DEVELOPER
 	{
-		"paymod",
+		"pay",
 		"payment",
 		"Send payment specified by {bolt11}",
-		"Experimental implementation of pay using modifiers",
+		"Attempt to pay the {bolt11} invoice.",
 		json_paymod
 	},
-#endif
 };
 
 int main(int argc, char *argv[])
