@@ -22,6 +22,7 @@ struct payment *payment_new(tal_t *ctx, struct command *cmd,
 	p->result = NULL;
 	p->why = NULL;
 	p->getroute = tal(p, struct getroute_request);
+	p->label = NULL;
 
 	/* Copy over the relevant pieces of information. */
 	if (parent != NULL) {
