@@ -256,6 +256,8 @@ struct payment {
 
 	/* Textual explanation of why this payment was attempted. */
 	const char *why;
+
+	const char *label;
 };
 
 struct payment_modifier {
