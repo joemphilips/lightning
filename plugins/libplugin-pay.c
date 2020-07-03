@@ -2099,6 +2099,7 @@ static void presplit_cb(void *d, struct payment *p)
 			    root->amount.millisatoshis); /* Raw: onion payload */
 		}
 	} else if (p == root && p->step == PAYMENT_STEP_INITIALIZED) {
+		size_t count = 0;
 		/* The presplitter only acts on the root and only in the first
 		 * step. */
 		/* If we are already below the target size don't split it
@@ -2141,8 +2142,19 @@ static void presplit_cb(void *d, struct payment *p)
 			 * when splitting. */
 			c->constraints.fee_budget.millisatoshis *= multiplier;
 			payment_start(c);
+			count++;
 		}
 		p->step = PAYMENT_STEP_SPLIT;
+		p->end_time = time_now();
+		p->why = tal_fmt(
+		    p,
+		    "Split into %zu sub-payments due to initial size (%s > "
+		    "%dmsat)",
+		    count,
+		    type_to_string(tmpctx, struct amount_msat, &root->amount),
+		    MPP_TARGET_SIZE);
+		p->result = NULL;
+		p->route = NULL;
 	}
 	payment_continue(p);
 }
