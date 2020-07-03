@@ -3219,3 +3219,8 @@ def test_mpp_presplit(node_factory):
     from pprint import pprint
     pprint(p)
     pprint(l1.rpc.paystatus(inv))
+
+    assert(p['parts'] >= 5)
+    inv = l3.rpc.listinvoices()['invoices'][0]
+
+    assert(inv['msatoshi'] == inv['msatoshi_received'])
