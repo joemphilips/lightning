@@ -1832,8 +1832,8 @@ static void shadow_route_cb(struct shadow_route_data *d,
 
 	/* Allow shadowroutes to consume up to 1/4th of our budget. */
 	d->constraints.cltv_budget = p->constraints.cltv_budget / 4;
-	d->constraints.fee_budget.millisatoshis =
-	    p->constraints.fee_budget.millisatoshis / 4; /* Raw: msat division. */
+	d->constraints.fee_budget = p->constraints.fee_budget;
+	d->constraints.fee_budget.millisatoshis /= 4; /* Raw: msat division. */
 
 	if (pseudorand(2) == 0) {
 		return payment_continue(p);
