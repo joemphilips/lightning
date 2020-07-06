@@ -385,7 +385,9 @@ static void send_announcement_signatures(struct peer *peer)
 
 	status_debug("Exchanging announcement signatures.");
 	ca = create_channel_announcement(tmpctx, peer);
+	printf("channel_annonucement is %s\n", tal_hex(ca, ca));
 	req = towire_hsm_cannouncement_sig_req(tmpctx, ca);
+	printf("req is %s\n", tal_hex(req, req));
 
 	msg = hsm_req(tmpctx, req);
 	if (!fromwire_hsm_cannouncement_sig_reply(msg,
